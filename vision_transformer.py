@@ -10,7 +10,11 @@ def exists(val):
 
 
 class FFN(nn.Module):
-    def __init__(self, dim, mult=4, dropout=0.):
+    def __init__(self,
+                 dim,
+                 mult=4,
+                 dropout=0.,
+                 ):
         """
         FFN (FeedForward Network)
         :param dim: model dimension (number of features)
@@ -34,7 +38,11 @@ class FFN(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, dim, num_heads=8, dropout=0.):
+    def __init__(self,
+                 dim,
+                 num_heads=8,
+                 dropout=0.,
+                 ):
         """
         Self-Attention module without attention masks (not needed for this application). It includes an optional
         relative position bias for using AliBi or SwinV2 position encoding.
@@ -72,15 +80,14 @@ class Attention(nn.Module):
 
 
 class BaseTransformer(nn.Module):
-    def __init__(
-        self,
-        dim,
-        depth,
-        num_heads=8,
-        attn_dropout=0.,
-        ff_dropout=0.,
-        ff_mult=4,
-    ):
+    def __init__(self,
+                 dim,
+                 depth,
+                 num_heads=8,
+                 attn_dropout=0.,
+                 ff_dropout=0.,
+                 ff_mult=4,
+                 ):
         super().__init__()
         self.layers = nn.ModuleList([])
         for _ in range(depth):
