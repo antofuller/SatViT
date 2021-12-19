@@ -21,16 +21,16 @@ class FFN(nn.Module):
         inner_dim = int(dim * mult)
 
         self.net = nn.Sequential(
-            nn.Linear(dim, inner_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(inner_dim, dim)
+            nn.Linear(dim, inner_dim),  # (BSZ, num_patches, inner_dim)
+            nn.GELU(),  # (BSZ, num_patches, inner_dim)
+            nn.Dropout(dropout),  # (BSZ, num_patches, inner_dim)
+            nn.Linear(inner_dim, dim)  # (BSZ, num_patches, dim)
         )
         self.input_norm = nn.LayerNorm(dim)
 
     def forward(self, x):
-        x = self.input_norm(x)
-        return self.net(x)
+        x = self.input_norm(x)  # (BSZ, num_patches, dim)
+        return self.net(x)  # (BSZ, num_patches, dim)
 
 
 class Attention(nn.Module):
@@ -54,24 +54,24 @@ class Attention(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, relative_position_bias=False):
-        x = self.input_norm(x)
-        q, k, v = self.to_qkv(x).chunk(3, dim=-1)
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.num_heads), (q, k, v))
+        x = self.input_norm(x)  # (BSZ, num_patches, dim)
+        q, k, v = self.to_qkv(x).chunk(3, dim=-1)  # (BSZ, num_patches, dim)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.num_heads), (q, k, v))  # (BSZ, num_heads, num_patches, dim_head)
 
-        attention_scores = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+        attention_scores = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale  # (BSZ, num_heads, num_patches, num_patches)
 
         if exists(relative_position_bias):
-            attention_scores = attention_scores + relative_position_bias
+            attention_scores = attention_scores + relative_position_bias  # (BSZ, num_heads, num_patches, num_patches)
 
-        attn = attention_scores.softmax(dim=-1)
-        attn = self.dropout(attn)
+        attn = attention_scores.softmax(dim=-1)  # (BSZ, num_heads, num_patches, num_patches)
+        attn = self.dropout(attn)  # (BSZ, num_heads, num_patches, num_patches)
 
-        out = einsum('b h i j, b h j d -> b h i d', attn, v)
-        out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.to_out(out)
+        out = einsum('b h i j, b h j d -> b h i d', attn, v)  # (BSZ, num_heads, num_patches, dim_head)
+        out = rearrange(out, 'b h n d -> b n (h d)')  # (BSZ, num_patches, dim)
+        return self.to_out(out)  # (BSZ, num_patches, dim)
 
 
-class Transformer(nn.Module):
+class BaseTransformer(nn.Module):
     def __init__(
         self,
         dim,
@@ -79,7 +79,7 @@ class Transformer(nn.Module):
         num_heads=8,
         attn_dropout=0.,
         ff_dropout=0.,
-        ff_mult=4
+        ff_mult=4,
     ):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -92,8 +92,8 @@ class Transformer(nn.Module):
         self.norm_out = nn.LayerNorm(dim)
 
     def forward(self, x, relative_position_bias):
-        for attn, ff in self.layers:
-            x = attn(x, relative_position_bias) + x
-            x = ff(x) + x
+        for self_attn, ffn in self.layers:
+            x = self_attn(x, relative_position_bias) + x  # (BSZ, num_patches, dim)
+            x = ffn(x) + x  # (BSZ, num_patches, dim)
 
-        return self.norm_out(x)
+        return self.norm_out(x)  # (BSZ, num_patches, dim)
