@@ -55,7 +55,8 @@ class RelativePosFFN(nn.Module):
             nn.Linear(in_dim, inner_dim),  # (BSZ, num_patches, inner_dim)
             nn.GELU(),  # (BSZ, num_patches, inner_dim)
             nn.Dropout(dropout),  # (BSZ, num_patches, inner_dim)
-            nn.Linear(inner_dim, out_dim)  # (BSZ, num_patches, out_dim)
+            nn.Linear(inner_dim, out_dim),  # (BSZ, num_patches, out_dim)
+            nn.Linear(out_dim, out_dim)  # (BSZ, num_patches, out_dim)
         )
 
     def forward(self, x):
