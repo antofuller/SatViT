@@ -3,6 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 from einops import repeat
 from transformer_model import BaseTransformer
+from relative_position_encoding import build_dx_dy, RelativePosFFN
 
 
 def exists(val):
@@ -13,6 +14,8 @@ class SSLModel(nn.Module):
     def __init__(self,
                  mae_config,
                  contrastive_config,
+                 position_encoding='position_embeddings',
+                 num_patches=1024,
                  encoder_dim=512,
                  encoder_depth=12,
                  encoder_num_heads=8,
@@ -32,15 +35,31 @@ class SSLModel(nn.Module):
             self.mask_emb = nn.Parameter(torch.randn(mae_config['decoder_dim']))
 
             # If the encoder and decoder have different model widths (dim) we need to apply a linear projection from the
-            # encoder to the decoder
+            # encoder to the decoder. If the models have equal width, no projection is needed.
             self.enc_to_dec = nn.Linear(encoder_dim, mae_config['decoder_dim']) if encoder_dim != mae_config['decoder_dim'] else nn.Identity()
 
-        # An encoder is always required (it is our main model)
+        # The encoder is our main model. During inference the decoder won't likely even be used.
         self.encoder = BaseTransformer(dim=encoder_dim,
                                        depth=encoder_depth,
                                        num_heads=encoder_num_heads,
                                        )
 
+        # Setup our position encoding, it should be either standard position embeddings (which are added to the patch
+        # embeddings), or a relative position bias (which are added to the self-attention scores)
+        if position_encoding.lower() == 'position_embeddings':
+            self.encoder_pos_emb = nn.Embedding(num_patches, encoder_dim)  # TODO: multiply by 1/sqrt(dim)
+            if exists(mae_config):  # only if we have a decoder
+                self.decoder_pos_emb = nn.Embedding(num_patches, mae_config['decoder_dim'])  # TODO: multiply by 1/sqrt(dim)
+            self.relative_position_bias = None  # not used if using position embeddings
+
+        elif position_encoding.lower() == 'relative_bias':
+            self.encoder_pos_emb = None  # not used if using relative position bias
+            self.dx_dy = build_dx_dy()  # tensor of shape (1024, 1024, 2)
+            self.rpe_ffn = RelativePosFFN(in_dim=2,  # for dx and dy
+                                          inner_dim=int(encoder_num_heads*2),  # arbitrarily chosen
+                                          out_dim=encoder_num_heads)  # we need 1 bias per attention head
+        else:
+            raise f"position_encoding must be either 'position_embeddings' or 'relative_bias'"
     #     num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
     #     self.to_patch, self.patch_to_emb = encoder.to_patch_embedding[:2]
     #     pixel_values_per_patch = self.patch_to_emb.weight.shape[-1]
