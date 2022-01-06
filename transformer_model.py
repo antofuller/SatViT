@@ -95,7 +95,7 @@ class BaseTransformer(nn.Module):
 
         self.norm_out = nn.LayerNorm(dim)
 
-    def forward(self, x, relative_position_bias):
+    def forward(self, x, relative_position_bias=False):
         for self_attn, ffn in self.layers:
             x = self_attn(x, relative_position_bias) + x  # (BSZ, num_patches, dim)
             x = ffn(x) + x  # (BSZ, num_patches, dim)
