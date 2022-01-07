@@ -81,15 +81,14 @@ class SatViT(nn.Module):
         # Encode the unmasked patches via the encoder
         encodings = self.encoder(unmasked_patches)
 
-        # project encoder to decoder dimensions, if they are not equal
-        decoder_input = self.enc_to_dec(encodings)
+        # project encoder to decoder dimensions, if they are not equal, then add unmasked decoder position embeddings
+        encodings = self.enc_to_dec(encodings) + self.decoder_pos_emb(unmasked_indices)
 
         # repeat mask tokens for number of masked, and add the positions using the masked indices derived above
-        mask_embeds = repeat(self.mask_emb, 'd -> b n d', b=bsz, n=num_masked)
+        mask_embeds = repeat(self.mask_emb, 'd -> b n d', b=bsz, n=num_masked) + self.decoder_pos_emb(masked_indices)
 
         # concat the masked tokens to the decoder tokens and attend with decoder
-        decoder_position_embeds = self.decoder_pos_emb(torch.arange(256, device=device)).view(1, 256, self.decoder_dim)
-        decoder_input = torch.cat([mask_embeds, decoder_input], dim=1) + decoder_position_embeds.repeat(bsz, 1, 1)
+        decoder_input = torch.cat([mask_embeds, encodings], dim=1)
         decoder_output = self.decoder(decoder_input)
 
         # splice out the mask tokens and project to pixel values
