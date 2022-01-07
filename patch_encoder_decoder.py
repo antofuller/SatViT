@@ -4,7 +4,7 @@ import torch.nn as nn
 from vector_quantize_pytorch import VectorQuantize
 
 
-class Encoder(nn.Module):
+class ConvEncoder(nn.Module):
     def __init__(
         self,
         input_channels: int,
@@ -110,7 +110,7 @@ class Encoder(nn.Module):
         return self._forward_impl(x)
 
 
-class Decoder(nn.Module):
+class ConvDecoder(nn.Module):
     def __init__(
         self,
         input_channels: int,
@@ -225,7 +225,7 @@ class VqVae(nn.Module):
                  num_codes=16384,
                  ):
         super().__init__()
-        self.encoder = Encoder(input_channels=channels, output_channels=codebook_emb, layers=[5, 5, 5, 5])
+        self.conv_encoder = ConvEncoder(input_channels=channels, output_channels=codebook_emb, layers=[5, 5, 5, 5])
         self.vq_vae = VectorQuantize(
             dim=codebook_emb,
             codebook_size=num_codes,
@@ -233,13 +233,13 @@ class VqVae(nn.Module):
             threshold_ema_dead_code=2,
             use_cosine_sim=True,
         ).cuda()
-        self.decoder = Decoder(input_channels=codebook_emb, output_channels=channels, layers=[5, 5, 5, 5])
+        self.conv_decoder = ConvDecoder(input_channels=codebook_emb, output_channels=channels, layers=[5, 5, 5, 5])
 
     def encode(self, x):
-        return self.encoder(x)
+        return self.conv_encoder(x)
 
     def decode(self, x):
-        return self.decoder(x)
+        return self.conv_decoder(x)
 
     def forward(self, x):
         # Create Encodings
