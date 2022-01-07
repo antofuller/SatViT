@@ -1,6 +1,7 @@
 from torchvision.models.resnet import BasicBlock, Bottleneck, conv1x1
 from typing import Type, Callable, Union, List, Optional
 import torch.nn as nn
+from vector_quantize_pytorch import VectorQuantize
 
 
 class Encoder(nn.Module):
@@ -8,8 +9,8 @@ class Encoder(nn.Module):
         self,
         input_channels: int,
         output_channels: int,
-        block: Type[Union[BasicBlock, Bottleneck]],
         layers: List[int],
+        block: Type[Union[BasicBlock, Bottleneck]] = BasicBlock,
         zero_init_residual: bool = False,
         groups: int = 1,
         width_per_group: int = 64,
@@ -114,8 +115,8 @@ class Decoder(nn.Module):
         self,
         input_channels: int,
         output_channels: int,
-        block: Type[Union[BasicBlock, Bottleneck]],
         layers: List[int],
+        block: Type[Union[BasicBlock, Bottleneck]] = BasicBlock,
         zero_init_residual: bool = False,
         groups: int = 1,
         width_per_group: int = 64,
@@ -215,3 +216,39 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         return self._forward_impl(x)
+
+
+class VqVae(nn.Module):
+    def __init__(self,
+                 codebook_emb=128,
+                 channels=12,
+                 num_codes=16384,
+                 ):
+        super().__init__()
+        self.encoder = Encoder(input_channels=channels, output_channels=codebook_emb, layers=[5, 5, 5, 5])
+        self.vq_vae = VectorQuantize(
+            dim=codebook_emb,
+            codebook_size=num_codes,
+            accept_image_fmap=True,
+            threshold_ema_dead_code=2,
+            use_cosine_sim=True,
+        ).cuda()
+        self.decoder = Decoder(input_channels=codebook_emb, output_channels=channels, layers=[5, 5, 5, 5])
+
+    def encode(self, x):
+        return self.encoder(x)
+
+    def decode(self, x):
+        return self.decoder(x)
+
+    def forward(self, x):
+        # Create Encodings
+        x = self.encode(x)
+
+        # Quantize
+        _quantized, _indices, _loss = self.vq_vae(x)
+
+        # Reconstruct
+        _quantized = self.decode(_quantized)
+
+        return _quantized, _indices, _loss
