@@ -235,11 +235,11 @@ class VqVae(nn.Module):
         ).cuda()
         self.conv_decoder = ConvDecoder(input_channels=codebook_emb, output_channels=channels, layers=[5, 5, 5, 5])
 
-    def encode(self, x):
-        return self.conv_encoder(x)
+    def encode(self, _x):
+        return self.conv_encoder(_x)
 
-    def decode(self, x):
-        return self.conv_decoder(x)
+    def decode(self, _x):
+        return self.conv_decoder(_x)
 
     def forward(self, x):
         # Create Encodings
