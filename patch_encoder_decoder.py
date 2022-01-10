@@ -225,7 +225,7 @@ class VqVae(nn.Module):
                  num_codes=16384,
                  ):
         super().__init__()
-        self.conv_encoder = ConvEncoder(input_channels=channels, output_channels=codebook_emb, layers=[5, 5, 5, 5])
+        self.encoder = ConvEncoder(input_channels=channels, output_channels=codebook_emb, layers=[5, 5, 5, 5])
         self.vq_vae = VectorQuantize(
             dim=codebook_emb,
             codebook_size=num_codes,
@@ -233,13 +233,13 @@ class VqVae(nn.Module):
             threshold_ema_dead_code=2,
             use_cosine_sim=True,
         ).cuda()
-        self.conv_decoder = ConvDecoder(input_channels=codebook_emb, output_channels=channels, layers=[5, 5, 5, 5])
+        self.decoder = ConvDecoder(input_channels=codebook_emb, output_channels=channels, layers=[5, 5, 5, 5])
 
     def encode(self, _x):
-        return self.conv_encoder(_x)
+        return self.encoder(_x)
 
     def decode(self, _x):
-        return self.conv_decoder(_x)
+        return self.decoder(_x)
 
     def forward(self, x):
         # Create Encodings

@@ -3,11 +3,13 @@ from torch import nn
 import torch.nn.functional as F
 from einops import repeat, rearrange
 from transformer_model import BaseTransformer
+from mae_pos_embed import get_2d_sincos_pos_embed
 
 
 class SatViT(nn.Module):
     def __init__(self,
-                 io_dim,
+                 in_dim,
+                 out_dim,
                  num_patches=256,
                  encoder_dim=768,
                  encoder_depth=12,
@@ -32,69 +34,124 @@ class SatViT(nn.Module):
 
         # Mask embeddings are used in the decoder (these are the locations the decoder will predict the input)
         # These are the grey blocks in Figure 1 (https://arxiv.org/pdf/2111.06377.pdf)
-        self.mask_emb = nn.Parameter(torch.randn(decoder_dim))
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_dim))
 
         # If the encoder and decoder have different model widths (dim) we need to apply a linear projection from the
         # encoder to the decoder. If the models have equal width, no projection is needed.
-        self.enc_to_dec = nn.Linear(encoder_dim, decoder_dim) if encoder_dim != decoder_dim else nn.Identity()
+        self.enc_to_dec = nn.Linear(encoder_dim, decoder_dim)
         self.masking_ratio = masking_ratio
 
         self.decoder = BaseTransformer(dim=decoder_dim,
                                        depth=decoder_depth,
                                        num_heads=decoder_num_heads,
                                        )
-        # Setup position embeddings
-        enc_pos_scale = 1 / torch.sqrt(torch.Tensor([encoder_dim]))
-        self.encoder_pos_emb = nn.Embedding(num_patches, encoder_dim)
-        self.encoder_pos_emb.weight = nn.Parameter(self.encoder_pos_emb.weight * enc_pos_scale)
 
-        dec_pos_scale = 1 / torch.sqrt(torch.Tensor([decoder_dim]))
-        self.decoder_pos_emb = nn.Embedding(num_patches, decoder_dim)
-        self.decoder_pos_emb.weight = nn.Parameter(self.decoder_pos_emb.weight * dec_pos_scale)
+        # Setup position embeddings
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, encoder_dim), requires_grad=False)  # fixed sin-cos embedding
+        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches, decoder_dim), requires_grad=False)  # fixed sin-cos embedding
+
+        pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(num_patches**.5), cls_token=False)
+        self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
+
+        decoder_pos_embed = get_2d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], int(num_patches**.5), cls_token=False)
+        self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
 
         # Input and output maps
-        self.linear_input = nn.Linear(io_dim, encoder_dim)
-        self.linear_output = nn.Linear(decoder_dim, io_dim)
+        self.linear_input = nn.Linear(in_dim, encoder_dim)
+        self.linear_output = nn.Linear(decoder_dim, out_dim)
+        self.norm_pix_loss = True
 
-    def forward(self, x):
-        # x should be shape (BSZ, num_patches, io_dim)
-        bsz = x.shape[0]  # Batch size
-        device = x.device  # Get the device of our input img, i.e. GPU:id or CPU
+    def patch2seq(self, imgs):
+        """
+        imgs: (N, 3, H, W)
+        x: (N, L, patch_size**2 *3)
+        """
+        # In our case, this maps from img to decoder shape (bsz, c, h, w) -> (bsz, seq, out_dim)
+        x = rearrange(imgs,
+                      'b c (h_patch h_pix) (w_patch w_pix)-> b (h_patch w_patch) (c h_pix w_pix)',
+                      h_patch=16,
+                      w_patch=16)
+        return x
 
-        # Get img patches, then add position embeddings
-        patches = self.linear_input(x)  # (BSZ, num_patches, encoder_dim)
-        encoder_position_embeds = self.encoder_pos_emb(torch.arange(256, device=device)).view(1, 256, self.encoder_dim)
-        unmasked_patches = patches + encoder_position_embeds.repeat(bsz, 1, 1)  # (BSZ, num_patches, encoder_dim)
+    def random_masking(self, x, mask_ratio):
+        """
+        Perform per-sample random masking by per-sample shuffling.
+        Per-sample shuffling is done by argsort random noise.
+        x: [N, L, D], sequence
+        """
+        N, L, D = x.shape  # batch, length, dim
+        len_keep = int(L * (1 - mask_ratio))
 
-        # Calculate patches needed to be masked, and get random indices, dividing it up for mask vs unmasked
-        num_masked = int(self.masking_ratio * self.num_patches)
-        rand_indices = torch.rand(bsz, self.num_patches, device=device).argsort(dim=-1)
-        masked_indices, unmasked_indices = rand_indices[:, :num_masked], rand_indices[:, num_masked:]
+        noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
 
-        # Get the unmasked patches which will be encoded
-        batch_range = torch.arange(bsz, device=device)[:, None]
-        unmasked_patches = unmasked_patches[batch_range, unmasked_indices, :]
+        # sort noise for each sample
+        ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
+        ids_restore = torch.argsort(ids_shuffle, dim=1)
 
-        # Get the masked patches which are used as labels (patches should not have position embeddings added)
-        masked_patches = x[batch_range, masked_indices, :]
+        # keep the first subset
+        ids_keep = ids_shuffle[:, :len_keep]
+        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
 
-        # Encode the unmasked patches via the encoder
-        encodings = self.encoder(unmasked_patches)
+        # generate the binary mask: 0 is keep, 1 is remove
+        mask = torch.ones([N, L], device=x.device)
+        mask[:, :len_keep] = 0
+        # unshuffle to get the binary mask
+        mask = torch.gather(mask, dim=1, index=ids_restore)
 
-        # project encoder to decoder dimensions, if they are not equal, then add unmasked decoder position embeddings
-        encodings = self.enc_to_dec(encodings) + self.decoder_pos_emb(unmasked_indices)
+        return x_masked, mask, ids_restore
 
-        # repeat mask tokens for number of masked, and add the positions using the masked indices derived above
-        mask_embeds = repeat(self.mask_emb, 'd -> b n d', b=bsz, n=num_masked) + self.decoder_pos_emb(masked_indices)
+    def forward_encoder(self, x, mask_ratio):
+        # x should already come ready for the encoder, i.e. be of shape (bsz, seq, io_dim)
+        # add pos embed
+        x = self.linear_input(x) + self.pos_embed  # (bsz, seq, encoder_dim)
 
-        # concat the masked tokens to the decoder tokens and attend with decoder
-        decoder_input = torch.cat([mask_embeds, encodings], dim=1)
-        decoder_output = self.decoder(decoder_input)
+        # masking: length -> length * mask_ratio
+        x, mask, ids_restore = self.random_masking(x, mask_ratio)
 
-        # splice out the mask tokens and project to pixel values
-        pred_values = self.linear_output(decoder_output[:, :num_masked, :])
+        # apply Transformer blocks
+        x = self.encoder(x)
 
-        # calculate reconstruction loss
-        recon_loss = F.mse_loss(pred_values, masked_patches)
-        return recon_loss
+        return x, mask, ids_restore
 
+    def forward_decoder(self, x, ids_restore):
+        # embed tokens
+        x = self.enc_to_dec(x)
+
+        # append mask tokens to sequence
+        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
+        x = torch.cat([x, mask_tokens], dim=1)
+        x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
+
+        # add pos embed
+        x = x + self.decoder_pos_embed
+
+        # apply Transformer blocks
+        x = self.decoder(x)
+
+        # predictor projection
+        return self.linear_output(x)
+
+    def forward_loss(self, imgs, pred, mask):
+        """
+        imgs: [N, 3, H, W]
+        pred: [N, L, p*p*3]
+        mask: [N, L], 0 is keep, 1 is remove,
+        """
+
+        target = self.patch2seq(imgs)
+        if self.norm_pix_loss:
+            mean = target.mean(dim=-1, keepdim=True)
+            var = target.var(dim=-1, keepdim=True)
+            target = (target - mean) / (var + 1.e-6)**.5
+
+        loss = (pred - target) ** 2
+        loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
+
+        loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
+        return loss
+
+    def forward(self, patch_encodings, imgs, mask_ratio=0.75):
+        latent, mask, ids_restore = self.forward_encoder(patch_encodings, mask_ratio)
+        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        loss = self.forward_loss(imgs, pred, mask)
+        return loss, pred, mask
