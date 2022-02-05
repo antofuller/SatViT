@@ -232,7 +232,7 @@ class VqVae(nn.Module):
             accept_image_fmap=True,
             threshold_ema_dead_code=2,
             use_cosine_sim=True,
-        ).cuda()
+        )
         self.decoder = ConvDecoder(input_channels=codebook_emb, output_channels=channels, layers=[5, 5, 5, 5])
 
     def encode(self, _x):
