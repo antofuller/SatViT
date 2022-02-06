@@ -1,6 +1,6 @@
 from SSL_model import SatViT
-from convnets import ConvDecoder
-from einops import rearrange, repeat, reduce
+# from convnets import ConvDecoder
+# from einops import rearrange, repeat, reduce
 import time
 import torch
 import torch.nn as nn
@@ -30,8 +30,8 @@ FLAGS['metrics_debug'] = False
 
 SERIAL_EXEC = xmp.MpSerialExecutor()
 
-in_channels = 128
-in_patch_size = 4
+in_channels = 12
+in_patch_size = 16
 in_dim = int(in_channels*in_patch_size*in_patch_size)
 
 out_channels = 12
@@ -52,19 +52,15 @@ WRAPPED_MODEL = xmp.MpModelWrapper(SatViT(in_dim=in_dim,
                                           )
                                    )
 
-WRAPPED_DECODER = xmp.MpModelWrapper(ConvDecoder(input_channels=64,
-                                                 output_channels=12,
-                                                 inner_dim=256,
-                                                 layers=[5, 5, 5, 5])
-                                     )
-
 
 def train_mnist():
     torch.manual_seed(1)
 
     def get_dataset():
         N = 10000
-        all_data = torch.randn(N, 64, 128, 128)
+        # random inputs
+        all_data = torch.randn(N, 256, 3072)
+        # print(f'all_data SHAPE: {all_data.shape}')
         labels = torch.ones(N).float()
         _dataset = TensorDataset(all_data, labels)
         return _dataset
@@ -73,7 +69,7 @@ def train_mnist():
     # download the same data.
     train_dataset = SERIAL_EXEC.run(get_dataset)
     train_generator = DataLoader(train_dataset,
-                                 batch_size=1,
+                                 batch_size=64,
                                  shuffle=True)
 
     # Scale learning rate to world size
@@ -82,7 +78,6 @@ def train_mnist():
     # Get loss function, optimizer, and model
     device = xm.xla_device()
     model = WRAPPED_MODEL.to(device)
-    vq_decoder = WRAPPED_DECODER.to(device)
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=FLAGS['momentum'])
 
     def train_loop_fn(loader):
@@ -90,15 +85,9 @@ def train_mnist():
         model.train()
         for x, (data, target) in enumerate(loader):
             optimizer.zero_grad()
-            with torch.no_grad():
-                patches = vq_decoder(data)
 
-            mae_input = rearrange(patches,
-                                  '(b h_patch w_patch) c h_pix w_pix-> b (h_patch w_patch) (c h_pix w_pix)',
-                                  h_patch=16,
-                                  w_patch=16)
-
-            loss, _, _ = model(mae_input)
+            loss, _, _ = model(patch_encodings=data,
+                               imgs=data)
             loss.backward()
             xm.optimizer_step(optimizer)
             tracker.add(FLAGS['batch_size'])
@@ -123,7 +112,10 @@ def _mp_fn(rank, flags):
     global FLAGS
     FLAGS = flags
     torch.set_default_tensor_type('torch.FloatTensor')
-    accuracy, data, pred, target = train_mnist()
+    try:
+        accuracy, data, pred, target = train_mnist()
+    except KeyboardInterrupt:
+        exit()
 
 
 if __name__ == '__main__':

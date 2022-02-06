@@ -138,13 +138,13 @@ class SatViT(nn.Module):
         mask: [N, L], 0 is keep, 1 is remove,
         """
 
-        target = self.patch2seq(imgs)
+        # target = self.patch2seq(imgs)
         if self.norm_pix_loss:
-            mean = target.mean(dim=-1, keepdim=True)
-            var = target.var(dim=-1, keepdim=True)
-            target = (target - mean) / (var + 1.e-6)**.5
+            mean = imgs.mean(dim=-1, keepdim=True)
+            var = imgs.var(dim=-1, keepdim=True)
+            imgs = (imgs - mean) / (var + 1.e-6)**.5
 
-        loss = (pred - target) ** 2
+        loss = (pred - imgs) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
 
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
