@@ -18,7 +18,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 # Define Parameters
 FLAGS = {}
-FLAGS['batch_size'] = 32
+FLAGS['batch_size'] = 64
 FLAGS['num_workers'] = 4
 FLAGS['learning_rate'] = 0.01
 FLAGS['momentum'] = 0.5
@@ -69,7 +69,7 @@ def train_mnist():
     # download the same data.
     train_dataset = SERIAL_EXEC.run(get_dataset)
     train_generator = DataLoader(train_dataset,
-                                 batch_size=64,
+                                 batch_size=FLAGS['batch_size'],
                                  shuffle=True)
 
     # Scale learning rate to world size
