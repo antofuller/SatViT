@@ -90,7 +90,7 @@ def train_mnist():
                                imgs=data)
             loss.backward()
             xm.optimizer_step(optimizer)
-            tracker.add(FLAGS['batch_size'])
+
             if x % FLAGS['log_steps'] == 0:
                 print('[xla:{}]({}) Loss={:.5f} Rate={:.2f} GlobalRate={:.2f} Time={}'.format(
                     xm.get_ordinal(), x, loss.item(), tracker.rate(),
