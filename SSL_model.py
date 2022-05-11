@@ -1,7 +1,6 @@
 import torch
 from torch import nn
-import torch.nn.functional as F
-from einops import repeat, rearrange
+from einops import rearrange
 from transformer_model import BaseTransformer
 from mae_pos_embed import get_2d_sincos_pos_embed
 
