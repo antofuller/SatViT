@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="5366f962-56ee-4008-8f67-edd9e2eb190b" name="Changes" comment="rename">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SatViT_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/SatViT_model.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,7 +32,7 @@
       <option name="presentableId" value="Default" />
       <updated>1652281860717</updated>
       <workItem from="1652281862100" duration="3926000" />
-      <workItem from="1652286640753" duration="378000" />
+      <workItem from="1652286640753" duration="454000" />
     </task>
     <task id="LOCAL-00001" summary="clean up">
       <created>1652286139920</created>
@@ -63,7 +62,14 @@
       <option name="project" value="LOCAL" />
       <updated>1652286707190</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="rename">
+      <created>1652287035651</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1652287035651</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
