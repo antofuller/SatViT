@@ -37,7 +37,7 @@ class SatViT(nn.Module):
         # encoder to the decoder. If the models have equal width, no projection is needed.
         self.enc_to_dec = nn.Linear(encoder_dim, decoder_dim)
 
-        # The decoder is only used during pre-training
+        # The decoder is only used during pre-training...
         self.decoder = BaseTransformer(dim=decoder_dim,
                                        depth=decoder_depth,
                                        num_heads=decoder_num_heads,
