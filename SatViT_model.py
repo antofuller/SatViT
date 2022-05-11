@@ -59,12 +59,11 @@ class SatViT(nn.Module):
 
     def forward(self, imgs):
         # Receive imgs of shape (bsz, channels, height, width)
-
         # Patchify the images, where each image-patch is 16 by 16 pixels, and c channels
         x = rearrange(imgs, 'b c (h i) (w j) -> b (h w) (c i j)', i=16, j=16)  # (bsz, 256, c*16*16)
 
         # Linearly project the patches to our model width (number of features per patch), then add position embeddings
-        x = self.linear_input(x) + self.pos_embed  # (bsz, seq, encoder_dim)
+        x = self.linear_input(x) + self.pos_embed  # (bsz, 256, encoder_dim)
 
         # Run our inputs through all transformer layers
         x = self.encoder(x)
