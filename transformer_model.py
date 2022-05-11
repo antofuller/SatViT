@@ -90,8 +90,7 @@ class Attention(nn.Module):
                  dropout=0.,
                  ):
         """
-        Self-Attention module without attention masks (not needed for this application). It includes an optional
-        relative position bias for using AliBi or SwinV2 position encoding.
+        Self-Attention module
         :param dim: model dimension (number of features)
         :param num_heads: number of attention heads
         :param dropout: dropout between 0 and 1
