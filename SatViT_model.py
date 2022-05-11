@@ -37,7 +37,7 @@ class SatViT(nn.Module):
         # encoder to the decoder. If the models have equal width, no projection is needed.
         self.enc_to_dec = nn.Linear(encoder_dim, decoder_dim)
 
-        # The decoder is only used during pre-training...
+        # The decoder is only used during pre-training
         self.decoder = BaseTransformer(dim=decoder_dim,
                                        depth=decoder_depth,
                                        num_heads=decoder_num_heads,
@@ -55,13 +55,19 @@ class SatViT(nn.Module):
 
         # Input and output maps
         self.linear_input = nn.Linear(in_dim, encoder_dim)
-        self.linear_output = nn.Linear(decoder_dim, out_dim)
+        self.linear_output = nn.Linear(decoder_dim, out_dim)  # only used during pre-training
 
-    def forward(self, x):
+    def forward(self, imgs):
+        # Receive imgs of shape (bsz, channels, height, width)
 
+        # Patchify the images, where each image-patch is 16 by 16 pixels, and c channels
+        x = rearrange(imgs, 'b c (h i) (w j) -> b (h w) (c i j)', i=16, j=16)  # (bsz, 256, c*16*16)
+
+        # Linearly project the patches to our model width (number of features per patch), then add position embeddings
         x = self.linear_input(x) + self.pos_embed  # (bsz, seq, encoder_dim)
 
-        # apply Transformer blocks
+        # Run our inputs through all transformer layers
         x = self.encoder(x)
 
+        # For fine-tuning, all we need are patch encodings, so output them
         return x
