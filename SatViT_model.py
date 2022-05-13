@@ -4,6 +4,11 @@ from einops import rearrange
 from transformer_model import BaseTransformer, get_2d_sincos_pos_embed
 
 
+# --------------------------------------------------------
+# Based on the MAE code base
+# https://github.com/facebookresearch/mae
+# --------------------------------------------------------
+
 class SatViT(nn.Module):
     def __init__(self,
                  in_dim,
@@ -36,8 +41,6 @@ class SatViT(nn.Module):
         # If the encoder and decoder have different model widths (dim) we need to apply a linear projection from the
         # encoder to the decoder. If the models have equal width, no projection is needed.
         self.enc_to_dec = nn.Linear(encoder_dim, decoder_dim)
-
-        # The decoder is only used during pre-training
         self.decoder = BaseTransformer(dim=decoder_dim,
                                        depth=decoder_depth,
                                        num_heads=decoder_num_heads,
@@ -55,18 +58,80 @@ class SatViT(nn.Module):
 
         # Input and output maps
         self.linear_input = nn.Linear(in_dim, encoder_dim)
-        self.linear_output = nn.Linear(decoder_dim, out_dim)  # only used during pre-training
+        self.linear_output = nn.Linear(decoder_dim, out_dim)
 
-    def forward(self, imgs):
-        # Receive imgs of shape (bsz, channels, height, width)
-        # Patchify the images, where each image-patch is 16 by 16 pixels, and c channels
-        x = rearrange(imgs, 'b c (h i) (w j) -> b (h w) (c i j)', i=16, j=16)  # (bsz, 256, c*16*16)
+    def random_masking(self, x, mask_ratio):
+        """
+        Perform per-sample random masking by per-sample shuffling.
+        Per-sample shuffling is done by argsort random noise.
+        x: [N, L, D], sequence
+        """
+        N, L, D = x.shape  # batch, length, dim
+        len_keep = int(L * (1 - mask_ratio))
 
-        # Linearly project the patches to our model width (number of features per patch), then add position embeddings
-        x = self.linear_input(x) + self.pos_embed  # (bsz, 256, encoder_dim)
+        noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
 
-        # Run our inputs through all transformer layers
+        # sort noise for each sample
+        ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
+        ids_restore = torch.argsort(ids_shuffle, dim=1)
+
+        # keep the first subset
+        ids_keep = ids_shuffle[:, :len_keep]
+        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+
+        # generate the binary mask: 0 is keep, 1 is remove
+        mask = torch.ones([N, L], device=x.device)
+        mask[:, :len_keep] = 0
+        # unshuffle to get the binary mask
+        mask = torch.gather(mask, dim=1, index=ids_restore)
+
+        return x_masked, mask, ids_restore
+
+    def forward_encoder(self, x, mask_ratio):
+        # x should already come ready for the encoder, i.e. be of shape (bsz, seq, io_dim)
+        # add pos embed
+        x = self.linear_input(x) + self.pos_embed  # (bsz, seq, encoder_dim)
+
+        # masking: length -> length * mask_ratio
+        x, mask, ids_restore = self.random_masking(x, mask_ratio)
+
+        # apply Transformer blocks
         x = self.encoder(x)
 
-        # For fine-tuning, all we need are patch encodings, so output them
-        return x
+        return x, mask, ids_restore
+
+    def forward_decoder(self, x, ids_restore):
+        # embed tokens
+        x = self.enc_to_dec(x)
+
+        # append mask tokens to sequence
+        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
+        x = torch.cat([x, mask_tokens], dim=1)
+        x = torch.gather(x, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
+
+        # add pos embed
+        x = x + self.decoder_pos_embed
+
+        # apply Transformer blocks
+        x = self.decoder(x)
+
+        # predictor projection
+        return self.linear_output(x)
+
+    def forward_loss(self, imgs, pred, mask):
+        """
+        imgs: [N, 3, H, W]
+        pred: [N, L, p*p*3]
+        mask: [N, L], 0 is keep, 1 is remove,
+        """
+        loss = (pred - imgs) ** 2
+        loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
+
+        loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
+        return loss
+
+    def forward(self, patch_encodings, mask_ratio=0.75):
+        latent, mask, ids_restore = self.forward_encoder(patch_encodings, mask_ratio)
+        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        loss = self.forward_loss(patch_encodings, pred, mask)
+        return loss, pred, mask
