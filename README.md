@@ -12,4 +12,5 @@ Project directory for self-supervised training of multi-spectral optical and SAR
 ## Todo
 - [x] Upload code
 - [x] Upload pre-trained models
+- [ ] Improve comments in code
 - [ ] Create tutorials

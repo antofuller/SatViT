@@ -119,16 +119,15 @@ class SatViT(nn.Module):
         return self.linear_output(x)
 
     def forward_loss(self, imgs, pred, mask):
-        """
-        imgs: [N, 3, H, W]
-        pred: [N, L, p*p*3]
-        mask: [N, L], 0 is keep, 1 is remove,
-        """
         loss = (pred - imgs) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
 
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
+    
+    def encode(self, patch_encodings):
+        patch_encodings = self.linear_input(patch_encodings) + self.pos_embed  # (bsz, seq, encoder_dim)
+        return self.encoder(patch_encodings)
 
     def forward(self, patch_encodings, mask_ratio=0.75):
         latent, mask, ids_restore = self.forward_encoder(patch_encodings, mask_ratio)
