@@ -124,13 +124,22 @@ class SatViT(nn.Module):
 
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
-    
+
     def encode(self, patch_encodings):
-        patch_encodings = self.linear_input(patch_encodings) + self.pos_embed  # (bsz, seq, encoder_dim)
+        """
+        We encode full images (i.e., no masking) by linearly projecting image patches, adding position embeddings,
+        then encoding these inputs with our MAE encoder. This function will be used during fine-tuning and inference.
+        """
+        patch_encodings = self.linear_input(patch_encodings) + self.pos_embed  # (BSZ, num_patches, encoder_dim)
         return self.encoder(patch_encodings)
 
     def forward(self, patch_encodings, mask_ratio=0.75):
+        """
+        *** Masked Autoencoding Pre-training ***
+        We encode a portion of image patches (1 - mask_ratio), then use the encoded representations of visible patches
+        to predict all hidden patches.
+        """
         latent, mask, ids_restore = self.forward_encoder(patch_encodings, mask_ratio)
-        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        pred = self.forward_decoder(latent, ids_restore)  # (BSZ, num_patches, io_dim)
         loss = self.forward_loss(patch_encodings, pred, mask)
         return loss, pred, mask
