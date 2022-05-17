@@ -125,12 +125,12 @@ class SatViT(nn.Module):
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
 
-    def encode(self, patch_encodings):
+    def encode(self, images_patches):
         """
         We encode full images (i.e., no masking) by linearly projecting image patches, adding position embeddings,
         then encoding these inputs with our MAE encoder. This function will be used during fine-tuning and inference.
         """
-        patch_encodings = self.linear_input(patch_encodings) + self.pos_embed  # (BSZ, num_patches, encoder_dim)
+        patch_encodings = self.linear_input(images_patches) + self.pos_embed  # (BSZ, num_patches, encoder_dim)
         return self.encoder(patch_encodings)
 
     def forward(self, patch_encodings, mask_ratio=0.75):

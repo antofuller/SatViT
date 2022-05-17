@@ -35,9 +35,12 @@ image_patches = rearrange(random_image, 'b c (h i) (w j) -> b (h w) (c i j)', h=
 
 # Encode with SatViT encoder
 with torch.no_grad():
-    patch_encodings = model.encode(patch_encodings=image_patches)  # (bsz, num_patches, encoder_dim)
-
+    patch_encodings = model.encode(images_patches=image_patches)  # (bsz, num_patches, encoder_dim)
 ```
+
+# Detailed Usage
+[Please see here](https://link-url-here.org)
+
 # Todo
 - [x] Upload code
 - [x] Upload pre-trained models
