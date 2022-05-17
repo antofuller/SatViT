@@ -39,7 +39,7 @@ with torch.no_grad():
 ```
 
 # Detailed Usage
-[Please see here](https://link-url-here.org)
+[Please see here](https://github.com/antofuller/SatViT/tree/main/tutorials)
 
 # Todo
 - [x] Upload code
