@@ -137,7 +137,7 @@ def augment(_imgs):
         return rot_img(_imgs, np.pi)
 ```
 
-Prepare linear classifier, optimizer, LR scheduler, and loss function:
+Fine-tune for 50 epochs while calculating validation accuracy after every epoch.
 ```python
 linear = torch.nn.Linear(768, 4).cuda()  # linear projection from pooled representations to class logits
 params = list(mae_model.parameters()) + list(linear.parameters())
