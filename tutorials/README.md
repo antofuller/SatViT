@@ -77,7 +77,7 @@ train_loader = TensorDataset(dataset[:300], dummy_labels[:300])  # first 300 ima
 train_loader = DataLoader(train_loader, batch_size=batch_size, shuffle=True)
 
 val_loader = TensorDataset(dataset[300:], dummy_labels[300:])  # last 200 images in validation
-val_loader = DataLoader(val_loader, batch_size=256, shuffle=False)
+val_loader = DataLoader(val_loader, batch_size=512, shuffle=False)
 
 ```
 
@@ -196,12 +196,12 @@ for epoch in range(epochs):
             
             decisions = logits.argmax(dim=-1)  # (bsz)
             equate = (decisions == batch_labels.cuda()).int()
-            correct_num = equate.count_nonzero()
-            total_num = batch_labels.shape[0]
-            accuracy = correct_num/total_num
-            val_accs.append(accuracy.cpu().item())
-            
-    val_accs = torch.Tensor(val_accs).mean().item()
+            correct_num = equate.count_nonzero().item()
+            total_num = batch_labels.shape[0].item()
+
+            val_accs.append([correct_num, total_num])
+    
+    val_accs = sum([x[0] for x in val_accs]) / sum([x[1] for x in val_accs])
 
     if val_accs > record['val']:
         record['val'] = val_accs
