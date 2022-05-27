@@ -99,6 +99,7 @@ Define data augmentation and learning-rate functions:
 
 ```python
 import math
+import numpy as np
 
 def adjust_learning_rate(epoch, sched_config):
     """Decay the learning rate with half-cycle cosine after warmup"""
@@ -161,7 +162,6 @@ for epoch in range(epochs):
     for g in opt.param_groups:
         g['lr'] = set_LR  # update
 
-    
     train_losses = []
     mae_model = mae_model.train()
     for i_batch, batch in enumerate(train_loader):
