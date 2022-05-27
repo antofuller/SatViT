@@ -201,7 +201,7 @@ for epoch in range(epochs):
 
             val_accs.append([correct_num, total_num])
     
-    val_accs = sum([x[0] for x in val_accs]) / sum([x[1] for x in val_accs])
+    val_accs = sum([x[0] for x in val_accs]) / sum([x[1] for x in val_accs])  # total correct divided by total images
 
     if val_accs > record['val']:
         record['val'] = val_accs
