@@ -4,7 +4,7 @@ For fine-tuning, we recommend using imagery and preprocessing steps as close as 
 ## Multispectral optical preprocessing
 We use optical data taken from Sentinel-2 after top-of-atmosphere corrections, specifically the 'COPERNICUS/S2_SR' product from Google Earth  (GEE). For pre-training, each optical image was composed of averaging images taken over 1 month (only images with less than 20% cloud coverage). These preprocessing steps were done server-side via the GEE python API. However, if you want to use the median of images taken over some period of time, or a single image, we still expect our model to transfer relatively well. Importantly, our images are all 256x256 pixels (height and width). We recommend all of your fine-tuning images also be 256x256, you can deviate from this, but you will need to carefully select the appropriate position embeddings.
 
-After querying from GEE you will have images of shape (256, 256, 12), were 12 is the number of optical bands. It is probably easiest to save your images as PyTorch tensors by stacking them such that your dataset has the shape (num_images, 256, 256, 12). At this point you can normalize all channels by subtracting the mean, and dividing by the standard deviation (for each channel). See below:
+After querying from GEE you will have images of shape (256, 256, 12), where 12 is the number of optical bands. It is probably easiest to save your images as PyTorch tensors by stacking them such that your dataset has the shape (num_images, 256, 256, 12). At this point you can normalize all channels by subtracting the mean, and dividing by the standard deviation (for each channel). See below:
 
 ```python
 import torch
@@ -29,7 +29,7 @@ dummy_images = (dummy_images - optical_mean_std[:, 0]) / optical_mean_std[:, 1]
 dummy_images = rearrange(dummy_images, 'b h w c -> b c h w')
 ```
 
-This last step reshape/view our data into the shape (num_images, 12, 256, 256). Yes, you can do this with PyTorch's rearrange function, but I've run into issues with it before.
+This last step reshape/view our data into the shape (num_images, 12, 256, 256). Yes, you can do this with PyTorch's reshape function, but I've run into issues with it before.
 
 ## Synthetic Aperture Radar (SAR) preprocessing
 
@@ -65,7 +65,7 @@ After these steps we are left with stacked SAR data in the shape (num_images, 4,
 
 ## Fine-tuning
 
-Welcome to the fun part, fine-tuning our pre-trained models! First, lets split our dataset (created above) into train/validation sets:
+Welcome to the fun part, fine-tuning our pre-trained models! First, let's split our dataset (created above) into train/validation sets:
 ```python
 from torch.utils.data import TensorDataset, DataLoader
 
