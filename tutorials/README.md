@@ -29,7 +29,7 @@ dummy_images = (dummy_images - optical_mean_std[:, 0]) / optical_mean_std[:, 1]
 dummy_images = rearrange(dummy_images, 'b h w c -> b c h w')
 ```
 
-This last step reshapes our data into the shape (num_images, 12, 256, 256). Yes, you can do this with PyTorch's reshape function, but I've run into issues with it before.
+This last step (einops' rearrange function) reshapes our data into the shape (num_images, 12, 256, 256). Yes, you can do this with PyTorch's reshape function, but I've run into issues with it before.
 
 ## Synthetic Aperture Radar (SAR) preprocessing
 
