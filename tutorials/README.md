@@ -142,6 +142,7 @@ Prepare linear classifier, optimizer, LR scheduler, and loss function:
 ```python
 linear = torch.nn.Linear(768, 4).cuda()  # linear projection from pooled representations to class logits
 params = list(mae_model.parameters()) + list(linear.parameters())
+max_LR = 1e-4
 opt = torch.optim.AdamW(params, lr=max_LR)
 
 # Prep LR stepping
