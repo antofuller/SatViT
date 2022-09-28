@@ -2,6 +2,7 @@
 Project directory for self-supervised training of multispectral optical and SAR vision transformers!
 
 # Pre-trained model weights
+SatViT-V2 model weights and code will be released very soon! 
 
 | Arch. 	 | Inputs 	 | Pre-training<br>epochs 	 | Weights<br>	     |
 |---------|------------------------------|--------------------------|-----------------------------|
