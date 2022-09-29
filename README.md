@@ -1,7 +1,7 @@
 # SatViT (Satellite Vision Transformer)
 Project directory for self-supervised training of multispectral optical and SAR vision transformers!
 
-<b>SatViT-V2 performs much better than SatViT-V1 and will be uploaded within 1 week!</b>
+Edit from September 29th, 2022: <b>SatViT-V2 performs much better than SatViT-V1 and will be uploaded within 1 week!</b>
 
 # Pre-trained model weights
 
