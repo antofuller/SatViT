@@ -8,7 +8,7 @@ SatViT-V2 is much better than SatViT-V1. See a draft of our SatViT-V2 paper: htt
 Both models were pretrained on an unlabelled dataset of 1.3 million images acquired from Sentinel-1 and Sentinel-2 (stacked along the channel dimension).
 
 | Name 	 | Arch. 	 | Channels 	 | Image Size 	 | Patch Size 	 | Pretraining<br>epochs 	 | Weights<br>	     |
-|---------|---------|------------------------------|------------------------------|------------------------------|--------------------------|-----------------------------|
+|---------|---------|-------------------------|------------------------------|------------------------------|--------------------------|-----------------------------|
 | SatViT-V1 	 | ViT-Base 	 | optical-SAR (15 channels)                        	 | 256 by 256 pixels 	  |16 by 16 pixels                        	 | 100                  	 | [download](https://github.com/antofuller/SatViT/releases/download/pretrained_weights/SatViT_V1.pt)
 | SatViT-V2 	 | ViT-Base 	 | optical-SAR (15 channels)                   	 | 256 by 256 pixels 	 | 8 by 8 pixels                        	 | 220                   	 | [download](https://github.com/antofuller/SatViT/releases/download/pretrained_weights/SatViT_V2.pt)
 
@@ -34,7 +34,7 @@ model = SatViT(io_dim=io_dim,
                decoder_num_heads=6,
                ).cuda()
 
-pretrained_checkpoint = torch.load('SatViT_B_100.pt')['mae_model']
+pretrained_checkpoint = torch.load('SatViT_V1.pt')
 model.load_state_dict(pretrained_checkpoint)
 
 random_image = torch.randn(1, 16, 256, 256).cuda()  # (BSZ, num_channels, height, width)
@@ -66,7 +66,7 @@ model = SatViT(io_dim=io_dim,
                decoder_num_heads=8,
                ).cuda()
 
-pretrained_checkpoint = torch.load('SatViT_V2_220_epochs.pt')['mae_model']
+pretrained_checkpoint = torch.load('SatViT_V2.pt')
 model.load_state_dict(pretrained_checkpoint)
 
 random_image = torch.randn(1, 16, 256, 256).cuda()  # (BSZ, num_channels, height, width)
