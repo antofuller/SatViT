@@ -22,7 +22,7 @@ from einops import rearrange
 import torch
 
 patch_hw = 16  # pixels per patch (both height and width)
-num_channels = 16  # total input bands
+num_channels = 15  # total input bands
 io_dim = int(patch_hw*patch_hw*num_channels)
 model = SatViT(io_dim=io_dim,
                num_patches=256,
@@ -54,7 +54,7 @@ from einops import rearrange
 import torch
 
 patch_hw = 8  # pixels per patch (both height and width)
-num_channels = 16  # total input bands
+num_channels = 15  # total input bands
 io_dim = int(patch_hw*patch_hw*num_channels)
 model = SatViT(io_dim=io_dim,
                num_patches=1024,
