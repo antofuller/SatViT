@@ -37,7 +37,7 @@ model = SatViT(io_dim=io_dim,
 pretrained_checkpoint = torch.load('SatViT_V1.pt')
 model.load_state_dict(pretrained_checkpoint)
 
-random_image = torch.randn(1, 16, 256, 256).cuda()  # (BSZ, num_channels, height, width)
+random_image = torch.randn(1, 15, 256, 256).cuda()  # (BSZ, num_channels, height, width)
 
 # Split image up into patches
 image_patches = rearrange(random_image, 'b c (h i) (w j) -> b (h w) (c i j)', h=16, w=16)
@@ -69,12 +69,12 @@ model = SatViT(io_dim=io_dim,
 pretrained_checkpoint = torch.load('SatViT_V2.pt')
 model.load_state_dict(pretrained_checkpoint)
 
-random_image = torch.randn(1, 16, 256, 256).cuda()  # (BSZ, num_channels, height, width)
+random_image = torch.randn(1, 15, 256, 256).cuda()  # (BSZ, num_channels, height, width)
 
 # Split image up into patches
 image_patches = rearrange(random_image, 'b c (h i) (w j) -> b (h w) (c i j)', h=8, w=8)
 
-# Encode with SatViT-V1 encoder
+# Encode with SatViT-V2 encoder
 with torch.no_grad():
     patch_encodings = model.encode(images_patches=image_patches)  # (bsz, num_patches, encoder_dim)
 ```
