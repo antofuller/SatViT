@@ -40,7 +40,7 @@ model.load_state_dict(pretrained_checkpoint)
 random_image = torch.randn(1, 15, 256, 256).cuda()  # (BSZ, num_channels, height, width)
 
 # Split image up into patches
-image_patches = rearrange(random_image, 'b c (h i) (w j) -> b (h w) (c i j)', h=16, w=16)
+image_patches = rearrange(random_image, 'b c (h i) (w j) -> b (h w) (c i j)', i=16, j=16)
 
 # Encode with SatViT-V1 encoder
 with torch.no_grad():
@@ -72,7 +72,7 @@ model.load_state_dict(pretrained_checkpoint)
 random_image = torch.randn(1, 15, 256, 256).cuda()  # (BSZ, num_channels, height, width)
 
 # Split image up into patches
-image_patches = rearrange(random_image, 'b c (h i) (w j) -> b (h w) (c i j)', h=8, w=8)
+image_patches = rearrange(random_image, 'b c (h i) (w j) -> b (h w) (c i j)', i=8, j=8)
 
 # Encode with SatViT-V2 encoder
 with torch.no_grad():
